@@ -16,9 +16,9 @@
         body {
             padding: 0;
             margin: 0;
-            font-size: 62.5%;
             height: 100vh;
             width: 100vw;
+            font-weight: bold;
         }
         h1 {
             font-size: 2.4rem;
@@ -30,6 +30,19 @@
             line-height: 2em;
             background: #020202;
             color: #EFEFEF;
+            font-weight: bold;
+        }
+        h4 {
+            font-size: 1rem;
+            height: 1.3rem;
+            margin: 0;
+            padding: 0 1em;
+            box-sizing: border-box;
+            width: 100vw;
+            line-height: 1.3em;
+            background: #020202;
+            color: #EFEFEF;
+            font-weight: bold;
         }
         .flex-container {
             height: calc(100vh - 5rem);
@@ -130,13 +143,19 @@
             -ms-flex-item-align: stretch;
             align-self: stretch;
         }
+        #startAdventure{
+             margin: 15px 28px;
+             background-color: #49d248 ;
+             padding: 10px 4px;
+            font-weight: bold;
+         }
     </style>
     <script src="https://js.arcgis.com/4.4/"></script>
     <script>
         var googleMap;
         function initMap() {
             googleMap = new google.maps.Map(document.createElement('div'), {center: new google.maps.LatLng(45.0013,-72.6561), zoom: 18});
-        };
+        }
         require(
                 [
                     "esri/config",
@@ -147,17 +166,17 @@
                     "esri/layers/ElevationLayer",
                     "esri/layers/BaseElevationLayer",
                     "esri/geometry/support/jsonUtils",
+                    "esri/geometry/Extent",
                     "esri/tasks/support/Query",
                     "dojo/domReady!"
                 ],
                 function (esriConfig, Map, SceneView, FeatureLayer, ImageryLayer, ElevationLayer,
-                          BaseElevationLayer, geometryJsonUtils, Query) {
+                          BaseElevationLayer, geometryJsonUtils, Extent, Query) {
                     esriConfig.request.corsEnabledServers.push("maps.vcgi.vermont.gov");
                     esriConfig.request.corsEnabledServers.push("anrmaps.vermont.gov");
                     esriConfig.request.corsEnabledServers.push("vtransmap01.aot.state.vt.us");
                     esriConfig.request.corsEnabledServers.push("maps.vtrans.vermont.gov");
                     esriConfig.request.corsEnabledServers.push("maps.googleapis.com");
-                    console.log("aaaaaaaaaaaaaaaaaaaaaaaa")
                     var liDAR_DigitalElevationModel = new ImageryLayer({
                         id: "liDAR_DigitalElevationModel",
                         visible: false,
@@ -216,58 +235,6 @@
                         }
 
                     });
-//
-//                    function getRecreationActivities(data){
-//                        //TODO: make this work
-//                        alert("A"+value+"B"+key+"C"+data);
-//                        var activityArray = [];
-//                        switch ('Y') {
-//                            case data.CAMPING: //Create array for diff activities, then make a comma or return-separated list
-//                                activityArray.push("Camping");
-//
-//                            case data.FIELD_SPOR:
-//                                activityArray.push("Field");
-//
-//                            case data.COURT_SPOR:
-//                                activityArray.push("Courts");
-//
-//                            case data.GOLF:
-//                                activityArray.push("Golf");
-//
-//                            case data.SWIMMING:
-//                                activityArray.push("Swimming");
-//
-//                            case data.TRAIL:
-//                                activityArray.push("Trail");
-//
-//                            case data.PICNIC_PLA:
-//                                activityArray.push("Picnic area");
-//
-//                            case data.SKIING:
-//                                activityArray.push("Skiing");
-//                        }
-//                        //ADD TO ARRAY AS IS NEEDED, THEN PASS THIS ARRAY TO AN HTML LIST
-//
-//                        //THERE'S ALSO INFO ON A BUNCH OF DIFFERENT SPORTS, BUT NOT SURE HOW MUCH WE'LL WANT OF THIS: //(http://geodata.vermont.gov/datasets/VTANR::outdoor-recreation-sites-inventory/data)
-//
-////                        var recreationActivityList = document.createElement('ul');
-////                        for(var i = 0; i < activityArray.length; i++)
-////                        {
-////                            //create list item
-////                            var activityItem = document.createElement('li');
-////
-////                            //adds contents
-////                            activityItem.appendChild(document.createTextNode(activityArray[i]));
-////
-////                            //add the item to the list
-////                            recreationActivityList.appendChild(activityItem);
-////                        }
-//                        var recreationActivityList = (["<ul>"].concat(activityArray.map(function(act) {return "<li>" + act + "</li>"})).concat(["</ul>"])).join("");
-//                        return "Place of interest type: Outdoor recreation <br/>" +
-//                               "Description: {ORGANIZ} <br/>" +
-//                               "Town: {TOWN} <br/>" +
-//                               "Available activities: " + getRecreationActivities; //this may not work since it contains html objects, may need to return as string
-//                    }
 
                     //VT Fishing Access - This does not have a location filter for the purpose of comparing against the other dataset ur's
 
@@ -346,7 +313,7 @@
 
 
                     var service = new google.maps.places.PlacesService(googleMap);
-
+var sitecounter = 0;
 
                     function findNearbyAdventure(e){
                         if (navigator.geolocation) {
@@ -359,37 +326,60 @@
                                     x: position.coords.longitude,
                                     y: position.coords.latitude
                                 };
-                                query.geometry = point;
-                                query.distance = 2;
-                                query.units = "miles";
+                                query.geometry = new Extent({
+                                    xmin: position.coords.longitude-1,
+                                    ymin: position.coords.latitude-1,
+                                    xmax: position.coords.longitude+1,
+                                    ymax: position.coords.latitude+1,
+                                    spatialReference: 4326
+                                });
                                 query.spatialRelationship = "intersects";
 
-                                lyrView.queryFeatures(query)
-                                    .then(function(results){
-                                        var site = results[Math.floor(Math.random() * results.length)];
-                                        // user selects a point
-                                        var siteName = site.name;
-                                        service.nearbySearch({
-                                             location: new google.maps.LatLng(position.coords.latitude, position.coords.longitude),
-                                             radius: 3000
-                                         }, handleGoogleSummaryData);
+                                view.whenLayerView(recreationMapLayer)
+                                .then(function(layerview) {
+                                    console.log("AAAAAAAAAAA")
+                                    return layerview.queryFeatures(query)
+                                })
+                                .then(function(results){
+                                    console.log("ABBBBBBBBBBA")
+//                                    var site = results[Math.floor(Math.random() * results.length)];
+                                    // user selects a point
+                                    var siteNames = ["Green Mountain Power","Hidden Oaks Farms"];
+                                    service.nearbySearch({
+                                                             location: new google.maps.LatLng(position.coords.latitude, position.coords.longitude),
+                                                             radius: 3000
+                                                         }, handleGoogleSummaryData);
 
-                                        function handleGoogleSummaryData(results, status) {
-                                            if (status === google.maps.places.PlacesServiceStatus.OK) {
-                                                var matches = results.filter(function(result) {return result.name === siteName});
-                                                if (matches.length === 0) {
-                                                    handleGoogleDetails(site, null);
-                                                }
-                                                service.getDetails({placeId: matches[0].place_id}, handleGoogleDetails)
+                                    function handleGoogleSummaryData(results, status) {
+                                        if (status === google.maps.places.PlacesServiceStatus.OK) {
+                                            var matches = results.filter(function(result) {return result.name.toUpperCase() === siteNames[sitecounter].toUpperCase()});
+
+                                            if (matches.length === 0) {
+                                                handleGoogleDetails(siteNames[sitecounter], null);
+                                            } else {
+                                                sitecounter++;
+                                                service.getDetails({placeId: matches[ 0 ].place_id}, handleGoogleDetails)
                                             }
                                         }
-                                    });
+                                    }
+                                }, function() {console.log("AAGGGGGGGGG")});
                             });
                         }
                     }
 
                     function handleGoogleDetails(place, status) {
-                        document.getElementById("details").innerHTML(place);
+
+                        document.getElementById("details").innerHTML = (typeof place === "string")
+                            ? `<h4>${place.toUpperCase()}</h4>` +
+                              "<p>This location is undiscovered!</p>" +
+                              "<button></button>"
+                            : [
+                                `<h4>${place.name.toUpperCase()}</h4>`,
+                                `Number of Reviews: ${place.reviews.length}`,
+                                `Address: ${place.formatted_address}`,
+                                `Phone Number: ${place.formatted_phone_number}`,
+                                `Website: ${place.website}`
+                            ].join("<br/>");
                     }
 
                     function _toggleLayerVisiblity(mapLayer) {
