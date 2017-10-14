@@ -1,0 +1,447 @@
+<!doctype html>
+<html class="no-js" lang="">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <title>PioneerVT</title>
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="stylesheet" href="./css/normalize.css">
+    <link rel="stylesheet" href="./css/main.css">
+    <link rel="stylesheet" href="https://js.arcgis.com/4.4/esri/css/main.css">
+    <style>
+        html,
+        body {
+            padding: 0;
+            margin: 0;
+            font-size: 62.5%;
+            height: 100vh;
+            width: 100vw;
+        }
+        h1 {
+            font-size: 2.4rem;
+            height: 5rem;
+            margin: 0;
+            padding: 0 1em;
+            box-sizing: border-box;
+            width: 100vw;
+            line-height: 2em;
+            background: #020202;
+            color: #EFEFEF;
+        }
+        .flex-container {
+            height: calc(100vh - 5rem);
+            width: 100vw;
+            margin: 0;
+            padding: 0;
+            display: -ms-flexbox;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-flex-direction: row;
+            -ms-flex-direction: row;
+            flex-direction: row;
+            -webkit-flex-wrap: nowrap;
+            -ms-flex-wrap: nowrap;
+            flex-wrap: nowrap;
+            -webkit-justify-content: flex-start;
+            -ms-flex-pack: start;
+            justify-content: flex-start;
+            -webkit-align-content: stretch;
+            -ms-flex-line-pack: stretch;
+            align-content: stretch;
+            -webkit-align-items: flex-start;
+            -ms-flex-align: start;
+            align-items: flex-start;
+        }
+        #layerToggle {
+            -webkit-order: 0;
+            -ms-flex-order: 0;
+            order: 0;
+            -webkit-flex: 0 1 17rem;
+            -ms-flex: 0 1 17rem;
+            flex: 0 1 17rem;
+            -webkit-align-self: stretch;
+            -ms-flex-item-align: stretch;
+            align-self: stretch;
+            overflow-y: auto;
+        }
+        #layerToggle .scroll-container label {
+            cursor: pointer;
+            font-size: 1rem;
+            margin: .5rem;
+            padding: .2rem;
+            transition: background 0.5s;
+            display: -ms-flexbox;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-flex-direction: row;
+            -ms-flex-direction: row;
+            flex-direction: row;
+            -webkit-flex-wrap: nowrap;
+            -ms-flex-wrap: nowrap;
+            flex-wrap: nowrap;
+            -webkit-justify-content: flex-start;
+            -ms-flex-pack: start;
+            justify-content: flex-start;
+            -webkit-align-content: stretch;
+            -ms-flex-line-pack: stretch;
+            align-content: stretch;
+            -webkit-align-items: flex-start;
+            -ms-flex-align: start;
+            align-items: flex-start;
+        }
+        #layerToggle .scroll-container label:hover {
+            background: rgba(0, 255, 200, 0.5);
+        }
+        #layerToggle .scroll-container label input {
+            border: solid 1px #AAA;
+            border-radius: 2px;
+            -webkit-order: 0;
+            -ms-flex-order: 0;
+            order: 0;
+            -webkit-flex: 0 1 2rem;
+            -ms-flex: 0 1 2rem;
+            flex: 0 1 2rem;
+            -webkit-align-self: center;
+            -ms-flex-item-align: center;
+            align-self: center;
+        }
+        #layerToggle .scroll-container label span {
+            -webkit-order: 0;
+            -ms-flex-order: 0;
+            order: 0;
+            -webkit-flex: 1 1 auto;
+            -ms-flex: 1 1 auto;
+            flex: 1 1 auto;
+            -webkit-align-self: center;
+            -ms-flex-item-align: center;
+            align-self: center;
+        }
+        #viewDiv {
+            -webkit-order: 1;
+            -ms-flex-order: 1;
+            order: 1;
+            -webkit-flex: 1 1 auto;
+            -ms-flex: 1 1 auto;
+            flex: 1 1 auto;
+            -webkit-align-self: stretch;
+            -ms-flex-item-align: stretch;
+            align-self: stretch;
+        }
+    </style>
+    <script src="https://js.arcgis.com/4.4/"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDgyPX7zaFHdNCwv1UB0YVNjf3CoYwtwbs&libraries=places&callback=initMap"></script>
+    <script>
+        require(
+                [
+                    "esri/config",
+                    "esri/Map",
+                    "esri/views/SceneView",
+                    "esri/layers/FeatureLayer",
+                    "esri/layers/ImageryLayer",
+                    "esri/layers/ElevationLayer",
+                    "esri/layers/BaseElevationLayer",
+                    "esri/geometry/support/jsonUtils",
+                    "dojo/domReady!"
+                ],
+                function (esriConfig, Map, SceneView, FeatureLayer, ImageryLayer, ElevationLayer,
+                          BaseElevationLayer, geometryJsonUtils) {
+                    esriConfig.request.corsEnabledServers.push("maps.vcgi.vermont.gov");
+                    esriConfig.request.corsEnabledServers.push("anrmaps.vermont.gov");
+                    esriConfig.request.corsEnabledServers.push("vtransmap01.aot.state.vt.us");
+                    esriConfig.request.corsEnabledServers.push("maps.vtrans.vermont.gov");
+                    esriConfig.request.corsEnabledServers.push("maps.googleapis.com");
+
+                    var liDAR_DigitalElevationModel = new ImageryLayer({
+                        id: "liDAR_DigitalElevationModel",
+                        visible: false,
+                        url: "http://maps.vcgi.vermont.gov/arcgis/rest/services/EGC_services/IMG_VCGI_LIDARDEM_SP_NOCACHE_v1/ImageServer?f=pjson"
+                    });
+                    var liDAR_HillShade = new ImageryLayer({
+                        id: "liDAR_HillShade",
+                        visible: false,
+                        url: "http://maps.vcgi.vermont.gov/arcgis/rest/services/EGC_services/IMG_VCGI_LIDARHILLSHD_WM_CACHE_v1/ImageServer?f=pjson"
+                    });
+//
+//
+//                    // Outdoor Recreation Sites
+//                    var outdoorRecreationSites = new FeatureLayer({
+//                        id: "outdoorRecreationSites",
+//                        visible: false,
+//                        url: "https://anrmaps.vermont.gov/arcgis/rest/services/Open_Data/OPENDATA_ANR_TOURISM_SP_NOCACHE_v2/MapServer/166/query?outFields=*&where=1%2D1"
+//                    });
+//
+//                    // Fishing Access Areas
+//                    var fishingAccessAreas = new FeatureLayer({
+//                        id: "fishingAccessAreas",
+//                        visible: false,
+//                        url: "https://anrmaps.vermont.gov/arcgis/rest/services/Open_Data/OPENDATA_ANR_TOURISM_SP_NOCACHE_v2/MapServer/163/query?outFields=*&where=1%3D1"
+//                    });
+//
+//                    var roadsideMapLayer = new FeatureLayer({
+//                        id: "roadsideMapLayer"
+//                        ,visible: false
+//                        ,url: "http://anrmaps.vermont.gov/arcgis/rest/services/map_services/ACCD_OpenData/MapServer/12/query?outFields=*&where=1%3D1"
+//                        ,outFields: ["name", "description","town", "address"]
+//                        ,popupTemplate: {
+//                            title: "{name}",
+//                            content: [{
+//                                type: "text",
+//                                text: "<ul>\
+//                                <li>Place of interest type: Roadside gem </li>\
+//                                <li>Description: {description} </li>\
+//                                <li>Town: {town} </li>\
+//                                <li>Additional info: {address} </li>\
+//                                </ul>"
+//                            }]
+//                        }
+//
+//                    });
+
+                    //______ DEFINE FEATURE LAYERS ______//
+
+                    //css objects will define user preferences...
+                    //iconClick for activity preference
+                    //distance from for proximity
+
+
+                    //VT Roadside Maps
+
+                    var roadsideMapLayer = new FeatureLayer({
+                        id: "roadsideMapLayer"
+                        ,visible: false
+                        ,url: "http://anrmaps.vermont.gov/arcgis/rest/services/map_services/ACCD_OpenData/MapServer/12/query?where=1%3D1&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=*&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=4326&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentsOnly=false&datumTransformation=&parameterValues=&rangeValues=&f=pjson"
+                        ,outFields: ["name", "description","town", "address"]
+                        ,popupTemplate: {
+                            title: "{name}",
+                            content: [{
+                                type: "text",
+                                text: "<ul>\
+                                    <li>Place of interest type: Roadside gem </li>\
+                                    <li>Description: {description} </li>\
+                                    <li>Town: {town} </li>\
+                                    <li>Additional info: {address} </li>\
+                                    </ul>"
+                            }]
+                        }
+                    });
+                    //VT Outdoor Recreation Sites
+
+                    //var recreationPopupTemplate = new PopupTemplate({
+                    //might need to define the rec popup template outside...
+
+
+
+                    var recreationMapLayer = new FeatureLayer({
+                        id: "recreationMapLayer"
+                        ,visible: false
+                        ,url: "https://anrmaps.vermont.gov/arcgis/rest/services/Open_Data/OPENDATA_ANR_TOURISM_SP_NOCACHE_v2/MapServer/166/query?where=1%3D1&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=*&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=4326&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentsOnly=false&datumTransformation=&parameterValues=&rangeValues=&f=pjson"
+                        ,outFields: ["SITE_NAME", "TOWN","ORGANIZ","CAMPING","FIELD_SPOR", "COURT_SPOR","GOLF","SWIMMING","TRAIL","PICNIC_PLA","SKIING"]
+                        ,popupTemplate: {
+                            title: "{SITE_NAME}"
+                            ,content: getRecreationActivities
+                        }
+
+                    });
+
+                    function getRecreationActivities(data){
+                        //TODO: make this work
+                        alert(Object.keys(data));
+                        var activityArray = [];
+                        switch ('Y') {
+                            case data.CAMPING: //Create array for diff activities, then make a comma or return-separated list
+                                activityArray.push("Camping");
+
+                            case data.FIELD_SPOR:
+                                activityArray.push("Field");
+
+                            case data.COURT_SPOR:
+                                activityArray.push("Courts");
+
+                            case data.GOLF:
+                                activityArray.push("Golf");
+
+                            case data.SWIMMING:
+                                activityArray.push("Swimming");
+
+                            case data.TRAIL:
+                                activityArray.push("Trail");
+
+                            case data.PICNIC_PLA:
+                                activityArray.push("Picnic area");
+
+                            case data.SKIING:
+                                activityArray.push("Skiing");
+                        }
+                        //ADD TO ARRAY AS IS NEEDED, THEN PASS THIS ARRAY TO AN HTML LIST
+
+                        //THERE'S ALSO INFO ON A BUNCH OF DIFFERENT SPORTS, BUT NOT SURE HOW MUCH WE'LL WANT OF THIS: //(http://geodata.vermont.gov/datasets/VTANR::outdoor-recreation-sites-inventory/data)
+
+//                        var recreationActivityList = document.createElement('ul');
+//                        for(var i = 0; i < activityArray.length; i++)
+//                        {
+//                            //create list item
+//                            var activityItem = document.createElement('li');
+//
+//                            //adds contents
+//                            activityItem.appendChild(document.createTextNode(activityArray[i]));
+//
+//                            //add the item to the list
+//                            recreationActivityList.appendChild(activityItem);
+//                        }
+                        var recreationActivityList = (["<ul>"].concat(activityArray.map(function(act) {return "<li>" + act + "</li>"})).concat(["</ul>"])).join("");
+                        return "<ul>\
+                                <li>Place of interest type: Outdoor recreation </li>\
+                                <li>Description: {ORGANIZ} </li>\
+                                <li>Town: {TOWN} </li>\
+                                <li>Available activities: " + recreationActivityList + "</li>\
+                                </ul>"; //this may not work since it contains html objects, may need to return as string
+                    }
+
+                    //VT Fishing Access - This does not have a location filter for the purpose of comparing against the other dataset ur's
+
+                    var fishingMapLayer = new FeatureLayer({
+                        id: "fishingMapLayer"
+                        ,visible: false
+                        ,url: "https://anrmaps.vermont.gov/arcgis/rest/services/Open_Data/OPENDATA_ANR_TOURISM_SP_NOCACHE_v2/MapServer/163/query?where=1%3D1&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=*&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=4326&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentsOnly=false&datumTransformation=&parameterValues=&rangeValues=&f=pjson"
+                        ,outFields: ["WaterBody", "AccessType","description", "town","BoatSize","RampType","LakeArea","MaximumDepth"]
+                        ,popupTemplate: {
+                            title: "{WaterBody}"
+                            ,content: [{
+                                type: "text"
+                                ,text: "<ul>\
+                                    <li>Place of interest type: Boating/Fishing </li>\
+                                    <li>Description: {AccessType} </li>\
+                                    <li>Town: {town} </li>\
+                                    <li>Available activities: {description} </li>\
+                                    <li>Lake area: {LakeArea} </li>\
+                                    <li>Maximum depth {MaximumDepth} </li>\
+                                    <li>Boat size: {BoatSize} </li>\
+                                    <li>Ramp type: {RampType} </li>\
+                                    </ul>"
+                            }]
+                        }
+                    });
+
+                    var ExaggeratedElevationLayer = BaseElevationLayer.createSubclass(
+                            {
+                                  properties: {
+                                      // exaggerates the actual elevations by 8x
+                                      exaggeration: 8
+                                  },
+
+                                  load: function() {
+                                      this._elevation = new ElevationLayer({
+                                          url: "//elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer"
+                                      });
+
+                                      // wait for the elevation layer to load before resolving load()
+                                      this.addResolvingPromise(this._elevation.load());
+                                  },
+                                    // Fetches the tile(s) visible in the view
+                                    fetchTile: function(level, row, col) {
+                                        return this._elevation.fetchTile(level, row, col)
+                                        .then(function(data) {
+                                            var exaggeration = this.exaggeration;
+                                            data.values.forEach(function(value, index, values) {
+                                                values[index] = value * exaggeration;
+                                            });
+                                            return data;
+                                        }.bind(this));
+                                    }
+                            }
+                    );
+
+                    var map = new Map({
+                        basemap: "streets",
+                        ground: {
+                            layers: [ new ExaggeratedElevationLayer() ]
+                        },
+                        layers: [
+                            liDAR_DigitalElevationModel,
+                            liDAR_HillShade,
+                            roadsideMapLayer,
+                            recreationMapLayer,
+                            fishingMapLayer
+                        ]
+                    });
+
+                    var view = new SceneView({
+                        container: "viewDiv",
+                        map: map,
+                        center: [-72.2187148, 44.4556482],
+                        zoom: 10
+                    });
+                    var googleMap = new google.maps.Map(document.createElement('div'), {zoom: 18});
+                    var service = new google.maps.places.PlacesService(googleMap);
+
+                    function handleButton(){
+                        if (navigator.geolocation) {
+                            navigator.geolocation.getCurrentPosition(function(position) {
+
+                                //TODO: get local features arcgis
+                                // user selects a point
+                                var siteName; // = ....
+
+                                service.nearbySearch({
+                                    location: new google.maps.LatLng(position.coords.latitude, position.coords.longitude),
+                                    radius: 60
+                                }, handleGoogleSummaryData);
+
+                                function handleGoogleSummaryData(results, status) {
+                                    if (status === google.maps.places.PlacesServiceStatus.OK) {
+                                        var matches = results.filter(function(result) {return result.name === siteName});
+                                        if (matches.length === 0) {
+                                            //set location undiscovered
+                                        }
+                                        service.getDetails({placeId: matches[0].place_id}, handleGoogleDetails)
+                                    }
+                                }
+                            });
+                        }
+
+                    }
+
+                    function handleGoogleDetails(place, status) {
+                        if (status === google.maps.places.PlacesServiceStatus.OK) {
+                            place.reviews.length
+                            // show if is discovered or not
+                        }
+                    }
+
+                    function _toggleLayerVisiblity(mapLayer) {
+                        return (function(event) {
+                            mapLayer.visible = event.target.checked;
+                        });
+                    }
+
+                    document.getElementById("liDAR_DigitalElevationModel").addEventListener("change", _toggleLayerVisiblity(liDAR_DigitalElevationModel));
+                    document.getElementById("liDAR_HillShade").addEventListener("change", _toggleLayerVisiblity(liDAR_HillShade));
+                    document.getElementById("roadsideHistoricMarkers").addEventListener("change", _toggleLayerVisiblity(roadsideMapLayer));
+                    document.getElementById("outdoorRecreationSites").addEventListener("change", _toggleLayerVisiblity(recreationMapLayer));
+                    document.getElementById("fishingAccessAreas").addEventListener("change", _toggleLayerVisiblity(fishingMapLayer));
+                    // TODO: stuff!
+                }
+        );
+    </script>
+    <script></script>>
+</head>
+<body>
+    <h1>Pioneer</h1>
+    <div class="flex-container">
+        <aside id="layerToggle">
+            <div class="scroll-container">
+                <label><input type="checkbox" id="liDAR_DigitalElevationModel"><span>LiDAR Digital Elevation Model</span></label>
+                <label><input type="checkbox" id="liDAR_HillShade"><span>LiDAR Hill Shade</span></label>
+                <label><input type="checkbox" id="roadsideHistoricMarkers"><span>Roadside Historic Markers</span></label>
+                <label><input type="checkbox" id="outdoorRecreationSites"><span>Outdoor Recreation Sites</span></label>
+                <label><input type="checkbox" id="fishingAccessAreas"><span>Fishing Access Areas</span></label>
+            </div>
+        </aside>
+        <main id="viewDiv"></main>
+    </div>
+
+</body>
+</html>
